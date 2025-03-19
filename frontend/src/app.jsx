@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Header from "./Header";
 import LandingPage from "./LandingPage";
 import LoginPage from "./LoginPage";
+import SignupPage from "./SignupPage";
 import Quiz from "./Quiz";
 import QuestionForm from "./QuestionForm";
 
@@ -15,6 +16,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
             <Route path="/quiz" element={<Quiz />} />
             <Route path="/add-question" element={<QuestionForm />} />
           </Routes>
