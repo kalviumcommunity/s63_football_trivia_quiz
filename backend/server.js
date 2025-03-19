@@ -3,6 +3,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const connectDB = require("./connectDb");
 const routes = require("./routes");
+const userRoutes = require("./userRoutes");
 const net = require("net");
 
 dotenv.config();
@@ -17,6 +18,7 @@ connectDB();
 
 // Use Routes
 app.use("/api/quiz", routes);
+app.use("/api/users", userRoutes);
 
 // Function to check if a port is in use
 const isPortInUse = (port) => {
