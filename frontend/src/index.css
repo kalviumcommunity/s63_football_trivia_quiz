@@ -1,0 +1,190 @@
+/* CSS Reset and Base Styles */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  background: linear-gradient(to bottom, #3a5c40, #2d4930);
+  color: #fff;
+  line-height: 1.6;
+}
+
+/* Football field background */
+#root {
+  position: relative;
+  background-image: 
+    repeating-linear-gradient(
+      to bottom,
+      transparent,
+      transparent 30px,
+      rgba(255, 255, 255, 0.05) 30px,
+      rgba(255, 255, 255, 0.05) 60px
+    );
+  background-size: 100% 60px;
+  min-height: 100vh;
+}
+
+/* Full-width container */
+.app-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Navigation styles */
+nav {
+  background-color: #1a2e17;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  border-bottom: 3px solid #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+nav h1 {
+  color: #fff;
+  font-size: 1.8rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+nav ul {
+  display: flex;
+  list-style: none;
+}
+
+nav ul li {
+  margin-left: 1.5rem;
+}
+
+nav ul li a {
+  color: #fff;
+  text-decoration: none;
+  font-weight: bold;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+nav ul li a:hover {
+  background-color: #4a7c50;
+  transform: translateY(-2px);
+}
+
+/* Container for the main content */
+.content-container {
+  flex: 1;
+  width: 100%;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Animation for the football */
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+.football-animation {
+  position: relative;
+  margin: 2rem auto;
+  width: 60px;
+  height: 60px;
+}
+
+.football-animation::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: #8B4513;
+  border-radius: 40% 40% 50% 50%;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  transform: rotate(-15deg);
+  animation: bounce 2s infinite ease-in-out;
+}
+
+.football-animation::after {
+  content: '';
+  position: absolute;
+  width: 60%;
+  height: 10%;
+  background-color: #fff;
+  top: 45%;
+  left: 20%;
+  border-radius: 10px;
+  transform: rotate(-15deg);
+  animation: bounce 2s infinite ease-in-out;
+}
+
+/* Button styles */
+button, .btn {
+  background-color: #4a7c50;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+button:hover, .btn:hover {
+  background-color: #5d9e64;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  margin-bottom: 1rem;
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: 2.2rem;
+  text-align: center;
+  color: #fff;
+  margin-bottom: 1.5rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+p {
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  nav {
+    flex-direction: column;
+    padding: 1rem 0;
+  }
+  
+  nav ul {
+    margin-top: 1rem;
+  }
+  
+  nav ul li {
+    margin: 0 0.5rem;
+  }
+  
+  h2 {
+    font-size: 1.8rem;
+  }
+}
