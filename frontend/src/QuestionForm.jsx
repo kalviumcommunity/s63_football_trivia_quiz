@@ -11,6 +11,9 @@ const QuestionForm = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [editMode, setEditMode] = useState(false);
+  const [editId, setEditId] = useState(null);
   
   // Fetch existing questions when component mounts
   useEffect(() => {
@@ -61,7 +64,66 @@ const QuestionForm = () => {
     });
   };
   
-  // Handle form submission
+  // Handle editing a question
+  const handleEdit = (question) => {
+    setEditMode(true);
+    setEditId(question._id);
+    setFormData({
+      question: question.question,
+      options: [...question.options],
+      answer: question.answer
+    });
+    
+    // Scroll to form
+    document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth' });
+  };
+  
+  // Handle canceling edit mode
+  const handleCancelEdit = () => {
+    setEditMode(false);
+    setEditId(null);
+    setFormData({
+      question: '',
+      options: ['', '', '', ''],
+      answer: ''
+    });
+  };
+  
+  // Handle deleting a question
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this question?')) {
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`http://localhost:5000/api/quiz/${id}`, {
+        method: 'DELETE'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete question');
+      }
+      
+      // Update questions list by removing the deleted question
+      setQuestions(questions.filter(q => q._id !== id));
+      
+      // Show success message
+      setSuccessMessage('Question deleted successfully!');
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+      
+      setLoading(false);
+    } catch (err) {
+      setError(err.message);
+      setLoading(false);
+      console.error('Error deleting question:', err);
+    }
+  };
+
+  // Handle form submission (for both adding and updating)
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -85,8 +147,17 @@ const QuestionForm = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('http://localhost:5000/api/quiz', {
-        method: 'POST',
+      let url = 'http://localhost:5000/api/quiz';
+      let method = 'POST';
+      
+      // If in edit mode, use PUT method and include the question ID in the URL
+      if (editMode && editId) {
+        url = `${url}/${editId}`;
+        method = 'PUT';
+      }
+      
+      const response = await fetch(url, {
+        method: method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -94,10 +165,10 @@ const QuestionForm = () => {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to add question');
+        throw new Error(`Failed to ${editMode ? 'update' : 'add'} question`);
       }
       
-      const newQuestion = await response.json();
+      const resultQuestion = await response.json();
       
       // Reset form data
       setFormData({
@@ -106,17 +177,28 @@ const QuestionForm = () => {
         answer: ''
       });
       
+      // Exit edit mode if we were in it
+      if (editMode) {
+        setEditMode(false);
+        setEditId(null);
+        // Update the questions list by replacing the edited question
+        setQuestions(questions.map(q => q._id === editId ? resultQuestion : q));
+        setSuccessMessage('Question updated successfully!');
+      } else {
+        // Add the new question to the list
+        setQuestions([...questions, resultQuestion]);
+        setSuccessMessage('Question added successfully!');
+      }
+      
       // Show success message
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
       
-      // Update questions list
-      setQuestions([...questions, newQuestion]);
       setLoading(false);
     } catch (err) {
       setError(err.message);
       setLoading(false);
-      console.error('Error adding question:', err);
+      console.error(`Error ${editMode ? 'updating' : 'adding'} question:`, err);
     }
   };
   
@@ -133,7 +215,7 @@ const QuestionForm = () => {
           borderRadius: '4px',
           marginBottom: '1rem'
         }}>
-          Question added successfully!
+          {successMessage}
         </div>
       )}
       
@@ -158,6 +240,7 @@ const QuestionForm = () => {
         margin: '0 auto',
         boxShadow: '0 4px 10px rgba(0, 0, 0, 0.2)'
       }}>
+        <h3>{editMode ? 'Edit Question' : 'Add New Question'}</h3>
         <form onSubmit={handleSubmit}>
           <div className="form-group" style={{ marginBottom: '1.5rem' }}>
             <label htmlFor="question" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
@@ -225,23 +308,45 @@ const QuestionForm = () => {
             ))}
           </div>
           
-          <button
-            type="submit"
-            className="btn"
-            style={{ 
-              background: '#3498db',
-              color: 'white',
-              padding: '0.75rem 1.5rem',
-              borderRadius: '4px',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '1rem',
-              fontWeight: 'bold'
-            }}
-            disabled={loading}
-          >
-            {loading ? 'Submitting...' : 'Add Question'}
-          </button>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button
+              type="submit"
+              className="btn"
+              style={{ 
+                background: '#3498db',
+                color: 'white',
+                padding: '0.75rem 1.5rem',
+                borderRadius: '4px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                fontWeight: 'bold'
+              }}
+              disabled={loading}
+            >
+              {loading ? 'Submitting...' : editMode ? 'Update Question' : 'Add Question'}
+            </button>
+            
+            {editMode && (
+              <button
+                type="button"
+                className="btn"
+                onClick={handleCancelEdit}
+                style={{ 
+                  background: '#e74c3c',
+                  color: 'white',
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '4px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: 'bold'
+                }}
+              >
+                Cancel Edit
+              </button>
+            )}
+          </div>
         </form>
       </div>
       
@@ -278,6 +383,39 @@ const QuestionForm = () => {
                       {option} {option === question.answer && '✓'}
                     </div>
                   ))}
+                </div>
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '0.5rem', 
+                  marginTop: '1rem',
+                  justifyContent: 'flex-end'
+                }}>
+                  <button
+                    onClick={() => handleEdit(question)}
+                    style={{
+                      background: '#3498db',
+                      color: 'white',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '4px',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(question._id)}
+                    style={{
+                      background: '#e74c3c',
+                      color: 'white',
+                      padding: '0.5rem 1rem',
+                      borderRadius: '4px',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Delete
+                  </button>
                 </div>
               </li>
             ))}
