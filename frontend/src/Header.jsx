@@ -8,6 +8,7 @@ const Header = () => {
       <ul>
         <li><Link to="/">Home</Link></li>
         <li><Link to="/login">Login</Link></li>
+        <li><Link to="/add-question">Add Question</Link></li>
       </ul>
     </nav>
   );
