@@ -8,13 +8,45 @@ const Quiz = () => {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState('');
+
+  // Fetch users for the dropdown
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/users/all');
+        if (!response.ok) {
+          throw new Error('Failed to fetch users');
+        }
+        const data = await response.json();
+        setUsers(data);
+      } catch (err) {
+        console.error('Error fetching users:', err);
+      }
+    };
+
+    fetchUsers();
+  }, []);
   
   // Fetch questions from backend API
+  // Reset quiz state when changing users
+  useEffect(() => {
+    setCurrentQuestionIndex(0);
+    setScore(0);
+    setShowResults(false);
+  }, [selectedUser]);
+
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:5000/api/quiz');
+        setError(null); // Clear any previous errors
+        const url = new URL('http://localhost:5000/api/quiz');
+        if (selectedUser) {
+          url.searchParams.append('userId', selectedUser);
+        }
+        const response = await fetch(url);
         if (!response.ok) {
           throw new Error('Failed to fetch questions');
         }
@@ -39,7 +71,7 @@ const Quiz = () => {
     };
     
     fetchQuestions();
-  }, []);
+  }, [selectedUser]); // Re-fetch when selected user changes
   
   // Function to get random questions
   const getRandomQuestions = (allQuestions, count) => {
@@ -103,6 +135,35 @@ const Quiz = () => {
     <div className="content-container">
       <h2>Football Trivia Quiz</h2>
       <div className="football-animation"></div>
+      
+      {/* User filter dropdown */}
+      <div style={{ 
+        marginBottom: '2rem', 
+        maxWidth: '600px', 
+        margin: '0 auto 2rem auto'
+      }}>
+        <select
+          value={selectedUser}
+          onChange={(e) => setSelectedUser(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '0.8rem',
+            borderRadius: '4px',
+            border: '2px solid #4a7c50',
+            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+            color: 'white',
+            fontSize: '1rem',
+            marginBottom: '1rem'
+          }}
+        >
+          <option value="">All Questions</option>
+          {users.map(user => (
+            <option key={user._id} value={user._id}>
+              {user.username}'s Questions
+            </option>
+          ))}
+        </select>
+      </div>
       
       {!showResults ? (
         <div className="quiz-container" style={{ width: '100%', maxWidth: '600px', margin: '0 auto' }}>
