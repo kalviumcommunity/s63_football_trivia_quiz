@@ -4,7 +4,8 @@ const QuestionForm = () => {
   const [formData, setFormData] = useState({
     question: '',
     options: ['', '', '', ''],
-    answer: ''
+    correctAnswer: '',
+    creator_name: ''
   });
   
   const [questions, setQuestions] = useState([]);
@@ -46,6 +47,14 @@ const QuestionForm = () => {
     });
   };
   
+  // Handle input changes for creator name field
+  const handleCreatorNameChange = (e) => {
+    setFormData({
+      ...formData,
+      creator_name: e.target.value
+    });
+  };
+  
   // Handle input changes for option fields
   const handleOptionChange = (index, e) => {
     const newOptions = [...formData.options];
@@ -60,7 +69,7 @@ const QuestionForm = () => {
   const handleAnswerChange = (optionIndex) => {
     setFormData({
       ...formData,
-      answer: formData.options[optionIndex]
+      correctAnswer: Number(optionIndex) // Ensure it's a number
     });
   };
   
@@ -71,7 +80,8 @@ const QuestionForm = () => {
     setFormData({
       question: question.question,
       options: [...question.options],
-      answer: question.answer
+      correctAnswer: question.correctAnswer,
+      creator_name: question.creator_name || ''
     });
     
     // Scroll to form
@@ -85,7 +95,8 @@ const QuestionForm = () => {
     setFormData({
       question: '',
       options: ['', '', '', ''],
-      answer: ''
+      correctAnswer: '',
+      creator_name: ''
     });
   };
   
@@ -138,10 +149,21 @@ const QuestionForm = () => {
       return;
     }
     
-    if (!formData.answer) {
+    if (formData.correctAnswer === '' || formData.correctAnswer === undefined) {
       setError('Please select a correct answer');
       return;
     }
+    
+    // Final data preparation with proper types
+    const finalData = {
+      ...formData,
+      question: formData.question.trim(),
+      options: formData.options.map(opt => opt.trim()),
+      correctAnswer: Number(formData.correctAnswer),
+      creator_name: formData.creator_name.trim() || 'Anonymous'
+    };
+    
+    console.log('Submitting data:', finalData);
     
     try {
       setLoading(true);
@@ -156,25 +178,33 @@ const QuestionForm = () => {
         method = 'PUT';
       }
       
+      console.log(`Sending ${method} request to ${url}`);
+      
       const response = await fetch(url, {
         method: method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(finalData),
       });
       
+      const responseData = await response.json();
+      
       if (!response.ok) {
-        throw new Error(`Failed to ${editMode ? 'update' : 'add'} question`);
+        console.error('Server responded with error:', responseData);
+        throw new Error(responseData.message || `Failed to ${editMode ? 'update' : 'add'} question`);
       }
       
-      const resultQuestion = await response.json();
+      console.log('Server response:', responseData);
+      
+      const resultQuestion = responseData;
       
       // Reset form data
       setFormData({
         question: '',
         options: ['', '', '', ''],
-        answer: ''
+        correctAnswer: '',
+        creator_name: ''  // Reset creator name too
       });
       
       // Exit edit mode if we were in it
@@ -219,7 +249,7 @@ const QuestionForm = () => {
         </div>
       )}
       
-      {error && (
+          {error && (
         <div className="error-message" style={{ 
           background: 'rgba(255, 0, 0, 0.1)',
           color: 'red',
@@ -228,6 +258,18 @@ const QuestionForm = () => {
           marginBottom: '1rem'
         }}>
           Error: {error}
+          <button onClick={() => console.log('Current form data:', formData)} style={{
+            marginLeft: '10px',
+            background: 'transparent',
+            border: '1px solid red',
+            color: 'red',
+            padding: '2px 5px',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '0.8rem'
+          }}>
+            Debug
+          </button>
         </div>
       )}
       
@@ -242,6 +284,26 @@ const QuestionForm = () => {
       }}>
         <h3>{editMode ? 'Edit Question' : 'Add New Question'}</h3>
         <form onSubmit={handleSubmit}>
+          {/* Creator Name Field */}
+          <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+            <label htmlFor="creator_name" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+              Your Name:
+            </label>
+            <input
+              type="text"
+              id="creator_name"
+              value={formData.creator_name}
+              onChange={handleCreatorNameChange}
+              style={{ 
+                width: '100%', 
+                padding: '0.75rem',
+                borderRadius: '4px',
+                border: '1px solid #ccc'
+              }}
+              placeholder="Enter your name (or leave empty for 'Anonymous')"
+            />
+          </div>
+          
           <div className="form-group" style={{ marginBottom: '1.5rem' }}>
             <label htmlFor="question" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
               Question:
@@ -289,20 +351,20 @@ const QuestionForm = () => {
                 <button
                   type="button"
                   onClick={() => handleAnswerChange(index)}
-                  className={formData.answer === formData.options[index] ? 'selected' : ''}
+                  className={formData.correctAnswer === index ? 'selected' : ''}
                   style={{
                     padding: '0.5rem 1rem',
                     borderRadius: '4px',
-                    border: formData.answer === formData.options[index] 
+                    border: formData.correctAnswer === index 
                       ? '2px solid green' 
                       : '1px solid #ccc',
-                    background: formData.answer === formData.options[index] 
+                    background: formData.correctAnswer === index 
                       ? 'rgba(0, 255, 0, 0.1)' 
                       : 'white',
                     cursor: 'pointer'
                   }}
                 >
-                  {formData.answer === formData.options[index] ? 'Correct ✓' : 'Set as Correct'}
+                  {formData.correctAnswer === index ? 'Correct ✓' : 'Set as Correct'}
                 </button>
               </div>
             ))}
@@ -372,15 +434,32 @@ const QuestionForm = () => {
                 background: 'rgba(255, 255, 255, 0.1)',
                 borderRadius: '4px'
               }}>
-                <h4 style={{ marginTop: 0 }}>{question.question}</h4>
+                <div style={{ marginBottom: '0.5rem' }}>
+                  <h4 style={{ 
+                    marginTop: 0, 
+                    marginBottom: '0.5rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <span>Question by: {question.creator_name}</span>
+                  </h4>
+                  <div style={{
+                    fontSize: '1.1rem',
+                    fontWeight: 'bold',
+                    marginBottom: '1rem'
+                  }}>
+                    {question.question}
+                  </div>
+                </div>
                 <div style={{ marginLeft: '1rem' }}>
-                  {question.options.map((option, optIndex) => (
+                  {question.options && question.options.map((option, optIndex) => (
                     <div key={optIndex} style={{ 
                       marginBottom: '0.5rem',
-                      color: option === question.answer ? 'green' : 'inherit',
-                      fontWeight: option === question.answer ? 'bold' : 'normal'
+                      color: optIndex === question.correctAnswer ? 'green' : 'inherit',
+                      fontWeight: optIndex === question.correctAnswer ? 'bold' : 'normal'
                     }}>
-                      {option} {option === question.answer && '✓'}
+                      {option} {optIndex === question.correctAnswer && '✓'}
                     </div>
                   ))}
                 </div>
