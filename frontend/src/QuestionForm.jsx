@@ -5,7 +5,8 @@ const QuestionForm = () => {
     question: '',
     options: ['', '', '', ''],
     correctAnswer: '',
-    creator_name: ''
+    creator_name: '',
+    created_by: '' // Changed from userId to created_by to match backend
   });
   
   const [questions, setQuestions] = useState([]);
@@ -15,17 +16,48 @@ const QuestionForm = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState('');
   
-  // Fetch existing questions when component mounts
+  // Fetch existing questions when component mounts or when selectedUser changes
   useEffect(() => {
     fetchQuestions();
+  }, [selectedUser]);
+  
+  // Fetch all users for the dropdown
+  useEffect(() => {
+    fetchUsers();
   }, []);
   
-  // Function to fetch all questions from the API
+  // Function to fetch users from the API
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:5000/api/users/all');
+      if (!response.ok) {
+        throw new Error('Failed to fetch users');
+      }
+      const data = await response.json();
+      setUsers(data);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching users:', err);
+      setLoading(false);
+    }
+  };
+  
+  // Function to fetch all questions from the API, optionally filtered by user
   const fetchQuestions = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/quiz');
+      
+      // Build URL with query parameters if a user is selected
+      let url = 'http://localhost:5000/api/quiz';
+      if (selectedUser) {
+        url = `http://localhost:5000/api/quiz/user/${selectedUser}`;
+      }
+      
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch questions');
       }
@@ -37,6 +69,11 @@ const QuestionForm = () => {
       setLoading(false);
       console.error('Error fetching questions:', err);
     }
+  };
+  
+  // Handle user selection for filtering
+  const handleUserChange = (e) => {
+    setSelectedUser(e.target.value);
   };
   
   // Handle input changes for question field
@@ -81,7 +118,8 @@ const QuestionForm = () => {
       question: question.question,
       options: [...question.options],
       correctAnswer: question.correctAnswer,
-      creator_name: question.creator_name || ''
+      creator_name: question.creator_name || '',
+      created_by: question.created_by || '' // Include created_by when editing
     });
     
     // Scroll to form
@@ -96,7 +134,8 @@ const QuestionForm = () => {
       question: '',
       options: ['', '', '', ''],
       correctAnswer: '',
-      creator_name: ''
+      creator_name: '',
+      created_by: '' // Also reset created_by
     });
   };
   
@@ -160,7 +199,8 @@ const QuestionForm = () => {
       question: formData.question.trim(),
       options: formData.options.map(opt => opt.trim()),
       correctAnswer: Number(formData.correctAnswer),
-      creator_name: formData.creator_name.trim() || 'Anonymous'
+      creator_name: formData.creator_name.trim() || 'Anonymous',
+      created_by: formData.created_by || null // Include user relationship
     };
     
     console.log('Submitting data:', finalData);
@@ -204,7 +244,8 @@ const QuestionForm = () => {
         question: '',
         options: ['', '', '', ''],
         correctAnswer: '',
-        creator_name: ''  // Reset creator name too
+        creator_name: '',  // Reset creator name too
+        created_by: ''     // Reset user association
       });
       
       // Exit edit mode if we were in it
@@ -302,6 +343,32 @@ const QuestionForm = () => {
               }}
               placeholder="Enter your name (or leave empty for 'Anonymous')"
             />
+          </div>
+          
+          {/* User Selection Dropdown for creating quizzes */}
+          <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+            <label htmlFor="userSelect" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+              Associate with User:
+            </label>
+            <select
+              id="userSelect"
+              value={formData.created_by}
+              onChange={(e) => setFormData({...formData, created_by: e.target.value})}
+              style={{ 
+                width: '100%', 
+                padding: '0.75rem',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+                backgroundColor: 'white'
+              }}
+            >
+              <option value="">No User Association</option>
+              {users.map(user => (
+                <option key={user._id} value={user._id}>
+                  {user.username}
+                </option>
+              ))}
+            </select>
           </div>
           
           <div className="form-group" style={{ marginBottom: '1.5rem' }}>
@@ -420,7 +487,35 @@ const QuestionForm = () => {
         margin: '0 auto',
         boxShadow: '0 4px 10px rgba(0, 0, 0, 0.2)'
       }}>
-        <h3>Added Questions</h3>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h3>Added Questions</h3>
+          
+          {/* User Filter Dropdown */}
+          <div className="form-group" style={{ marginTop: '1rem' }}>
+            <label htmlFor="userFilter" style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>
+              Filter by User:
+            </label>
+            <select
+              id="userFilter"
+              value={selectedUser}
+              onChange={handleUserChange}
+              style={{ 
+                width: '100%', 
+                padding: '0.75rem',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+                backgroundColor: 'white'
+              }}
+            >
+              <option value="">All Users</option>
+              {users.map(user => (
+                <option key={user._id} value={user._id}>
+                  {user.username}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
         {loading && <p>Loading questions...</p>}
         {questions.length === 0 && !loading && (
           <p>No questions added yet.</p>

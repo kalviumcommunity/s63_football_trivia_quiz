@@ -15,7 +15,7 @@ const Quiz = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/users/all');
+        const response = await fetch('http://localhost:5000/api/sql/users/all');
         if (!response.ok) {
           throw new Error('Failed to fetch users');
         }
@@ -42,10 +42,16 @@ const Quiz = () => {
       try {
         setLoading(true);
         setError(null); // Clear any previous errors
-        const url = new URL('http://localhost:5000/api/quiz');
+        let url;
+        
         if (selectedUser) {
-          url.searchParams.append('userId', selectedUser);
+          // Use the endpoint specifically for fetching by user ID
+          url = new URL(`http://localhost:5000/api/sql/quiz/user/${selectedUser}`);
+        } else {
+          // Fetch all quizzes if no user is selected
+          url = new URL('http://localhost:5000/api/sql/quiz');
         }
+        
         const response = await fetch(url);
         if (!response.ok) {
           throw new Error('Failed to fetch questions');
@@ -56,7 +62,7 @@ const Quiz = () => {
         const formattedQuestions = data.map(q => ({
           question: q.question,
           options: q.options,
-          correctAnswer: q.answer
+          correctAnswer: q.correctAnswer !== undefined ? q.correctAnswer : q.answer // Support both property names
         }));
         
         // Randomly select 5 questions
@@ -158,7 +164,7 @@ const Quiz = () => {
         >
           <option value="">All Questions</option>
           {users.map(user => (
-            <option key={user._id} value={user._id}>
+            <option key={user.id} value={user.id}>
               {user.username}'s Questions
             </option>
           ))}
