@@ -6,6 +6,7 @@ const auth = require("./middleware/auth");
 // Public routes
 router.post("/signup", userController.signup);
 router.post("/login", userController.login);
+router.get("/all", userController.getAllUsers); // Public endpoint for user dropdown
 
 // Protected routes (require authentication)
 router.get("/me", auth, userController.getCurrentUser);

@@ -1,192 +1,185 @@
-const items = []; // Temporary storage for demo
+const Quiz = require('../models/Quiz');
 
-exports.getItems = (req, res) => {
-  res.json(items);
-};
-
-exports.getItem = (req, res) => {
-  const item = items.find(i => i.id === req.params.id);
-  if (!item) return res.status(404).json({ message: 'Item not found' });
-  res.json(item);
-};
-
-exports.createItem = (req, res) => {
+exports.getItems = async (req, res) => {
   try {
-    const { question, options, correctAnswer } = req.body;
+    const { creator, userId } = req.query;
+    
+    // Build query based on filters
+    let query = {};
+    
+    // Filter by creator_name if provided
+    if (creator) {
+      query.creator_name = creator;
+    }
+    
+    // Filter by created_by user ID if provided
+    if (userId) {
+      query.created_by = userId;
+    }
+    
+    // Fetch questions
+    const items = await Quiz.find(query)
+      .populate('created_by', 'username email') // Populate user details
+      .lean();
+    
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching items:', error);
+    res.status(500).json({ message: 'Server error while fetching items' });
+  }
+};
 
-    // Validate required fields
-    if (!question || !options || correctAnswer === undefined) {
-      return res.status(400).json({
-        message: 'Missing required fields',
-        errors: {
-          question: !question ? 'Question is required' : null,
-          options: !options ? 'Options are required' : null,
-          correctAnswer: correctAnswer === undefined ? 'Correct answer is required' : null
+exports.getItem = async (req, res) => {
+  try {
+    const item = await Quiz.findById(req.params.id)
+      .populate('created_by', 'username email')
+      .lean();
+      
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+    
+    res.json(item);
+  } catch (error) {
+    console.error('Error fetching item:', error);
+    res.status(500).json({ message: 'Server error while fetching item' });
+  }
+};
+
+exports.createItem = async (req, res) => {
+  try {
+    const { question, options, correctAnswer, creator_name, created_by } = req.body;
+    
+    // No strict duplicate check anymore - allow similar questions
+    
+    try {
+      // Create new quiz item with user relationship
+      const newItem = new Quiz({
+        question,
+        options,
+        correctAnswer,
+        creator_name: creator_name || 'Anonymous',
+        created_by: created_by || null // Link to User model
+      });
+      
+      // First attempt to save
+      const savedItem = await newItem.save();
+      res.status(201).json(savedItem);
+    } catch (saveError) {
+      // Check specifically for duplicate key errors (E11000)
+      if (saveError.code === 11000 && saveError.keyPattern && saveError.keyPattern.question) {
+        console.log('Handling duplicate question by making it unique');
+        
+        // Create a unique version of the question by adding a timestamp
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const uniqueQuestion = `${question} [${timestamp}]`;
+        
+        const newItemWithUniqueQuestion = new Quiz({
+          question: uniqueQuestion,
+          options,
+          correctAnswer, 
+          creator_name: creator_name || 'Anonymous',
+          created_by: created_by || null
+        });
+        
+        try {
+          // Second attempt with unique question
+          const savedItem = await newItemWithUniqueQuestion.save();
+          res.status(201).json(savedItem);
+        } catch (secondError) {
+          console.error('Error saving with unique question:', secondError);
+          res.status(500).json({ 
+            message: 'Error while saving question. Please try a different question.'
+          });
         }
-      });
+      } else if (saveError.name === 'ValidationError') {
+        return res.status(400).json({
+          message: 'Validation error',
+          errors: Object.values(saveError.errors).map(err => err.message)
+        });
+      } else {
+        // Handle other types of errors
+        throw saveError;
+      }
     }
-
-    // Validate question format
-    if (typeof question !== 'string' || question.trim().length < 5) {
-      return res.status(400).json({
-        message: 'Question must be a string with at least 5 characters'
-      });
-    }
-
-    // Validate options
-    if (!Array.isArray(options)) {
-      return res.status(400).json({
-        message: 'Options must be an array'
-      });
-    }
-
-    if (options.length < 2) {
-      return res.status(400).json({
-        message: 'At least 2 options are required'
-      });
-    }
-
-    // Validate that all options are strings
-    const invalidOptions = options.filter(opt => typeof opt !== 'string' || opt.trim().length === 0);
-    if (invalidOptions.length > 0) {
-      return res.status(400).json({
-        message: 'All options must be non-empty strings'
-      });
-    }
-
-    // Validate correct answer
-    if (!Number.isInteger(correctAnswer) || correctAnswer < 0 || correctAnswer >= options.length) {
-      return res.status(400).json({
-        message: `Correct answer must be a valid index between 0 and ${options.length - 1}`
-      });
-    }
-
-    // Check for duplicate questions
-    const duplicateQuestion = items.find(item => 
-      item.question.toLowerCase() === question.toLowerCase()
-    );
-    
-    if (duplicateQuestion) {
-      return res.status(400).json({
-        message: 'A question with similar content already exists'
-      });
-    }
-
-    // Create new item with validation passed
-    const newItem = { 
-      id: Date.now().toString(), 
-      question, 
-      options, 
-      correctAnswer,
-      createdAt: new Date()
-    };
-    
-    items.push(newItem);
-    res.status(201).json(newItem);
   } catch (error) {
     console.error('Error creating quiz item:', error);
     res.status(500).json({ message: 'Server error while creating quiz item' });
   }
 };
 
-exports.updateItem = (req, res) => {
+exports.updateItem = async (req, res) => {
   try {
-    const index = items.findIndex(i => i.id === req.params.id);
-    if (index === -1) return res.status(404).json({ message: 'Item not found' });
+    const { question, options, correctAnswer, creator_name, created_by } = req.body;
     
-    const { question, options, correctAnswer } = req.body;
-    const currentItem = items[index];
-    
-    // Create a copy of the item with proposed updates
-    let updatedItem = { ...currentItem };
-    
-    // Validate question if it's being updated
-    if (question !== undefined) {
-      // Validate question format
-      if (typeof question !== 'string' || question.trim().length < 5) {
-        return res.status(400).json({
-          message: 'Question must be a string with at least 5 characters'
-        });
-      }
-      
-      // Check for duplicate questions (only if the question is changing)
-      if (question.toLowerCase() !== currentItem.question.toLowerCase()) {
-        const duplicateQuestion = items.find(item => 
-          item.id !== currentItem.id && 
-          item.question.toLowerCase() === question.toLowerCase()
-        );
-        
-        if (duplicateQuestion) {
-          return res.status(400).json({
-            message: 'A question with similar content already exists'
-          });
-        }
-      }
-      
-      updatedItem.question = question;
+    // Find the item
+    const item = await Quiz.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
     }
     
-    // Validate options if they're being updated
-    if (options !== undefined) {
-      // Validate options array
-      if (!Array.isArray(options)) {
-        return res.status(400).json({
-          message: 'Options must be an array'
-        });
-      }
-      
-      if (options.length < 2) {
-        return res.status(400).json({
-          message: 'At least 2 options are required'
-        });
-      }
-      
-      // Validate that all options are strings
-      const invalidOptions = options.filter(opt => typeof opt !== 'string' || opt.trim().length === 0);
-      if (invalidOptions.length > 0) {
-        return res.status(400).json({
-          message: 'All options must be non-empty strings'
-        });
-      }
-      
-      updatedItem.options = options;
-      
-      // If options change but correctAnswer doesn't, validate the existing correctAnswer still works
-      if (correctAnswer === undefined && updatedItem.correctAnswer >= options.length) {
-        return res.status(400).json({
-          message: `Current correct answer index is invalid for the new options. Please update the correct answer.`
-        });
-      }
-    }
+    // No strict duplicate check anymore - allow similar questions
     
-    // Validate correctAnswer if it's being updated
-    if (correctAnswer !== undefined) {
-      const optionsToCheck = options || currentItem.options;
-      
-      if (!Number.isInteger(correctAnswer) || correctAnswer < 0 || correctAnswer >= optionsToCheck.length) {
-        return res.status(400).json({
-          message: `Correct answer must be a valid index between 0 and ${optionsToCheck.length - 1}`
-        });
-      }
-      
-      updatedItem.correctAnswer = correctAnswer;
-    }
+    // Update the item
+    const updates = {};
+    if (question) updates.question = question;
+    if (options) updates.options = options;
+    if (correctAnswer !== undefined) updates.correctAnswer = correctAnswer;
+    if (creator_name) updates.creator_name = creator_name;
+    if (created_by) updates.created_by = created_by;
     
-    // Update timestamp
-    updatedItem.updatedAt = new Date();
+    const updatedItem = await Quiz.findByIdAndUpdate(
+      req.params.id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
     
-    // Apply validated updates
-    items[index] = updatedItem;
     res.json(updatedItem);
   } catch (error) {
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        message: 'Validation error',
+        errors: Object.values(error.errors).map(err => err.message)
+      });
+    }
+    
     console.error('Error updating quiz item:', error);
     res.status(500).json({ message: 'Server error while updating quiz item' });
   }
 };
-
-exports.deleteItem = (req, res) => {
-  const index = items.findIndex(i => i.id === req.params.id);
-  if (index === -1) return res.status(404).json({ message: 'Item not found' });
-  items.splice(index, 1);
-  res.json({ message: 'Item deleted successfully' });
+exports.getItemsByUser = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+    
+    // Find all quizzes created by the specified user
+    const items = await Quiz.find({ created_by: userId })
+      .populate('created_by', 'username email')
+      .lean();
+    
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching items by user:', error);
+    res.status(500).json({ message: 'Server error while fetching items by user' });
+  }
+};
+exports.deleteItem = async (req, res) => {
+  try {
+    // Find the item
+    const item = await Quiz.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+    
+    // Delete the item
+    await Quiz.findByIdAndDelete(req.params.id);
+    
+    res.json({ message: 'Item deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting quiz item:', error);
+    res.status(500).json({ message: 'Server error while deleting quiz item' });
+  }
 };

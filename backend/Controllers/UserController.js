@@ -166,3 +166,18 @@ exports.getCurrentUser = async (req, res) => {
     res.status(500).json({ message: 'Server error retrieving user data' });
   }
 };
+
+// Get all users for dropdown
+exports.getAllUsers = async (req, res) => {
+  try {
+    // Only return necessary fields for the dropdown
+    const users = await User.find({})
+      .select('_id username')
+      .sort({ username: 1 }); // Sort alphabetically by username
+    
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ message: 'Server error while fetching users' });
+  }
+};
