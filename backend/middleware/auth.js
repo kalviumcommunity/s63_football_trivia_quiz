@@ -3,8 +3,13 @@ const jwt = require('jsonwebtoken');
 // Authentication middleware
 const auth = (req, res, next) => {
   try {
-    // Get token from header
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    // Get token from header or cookie
+    let token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    // If no token in header, check cookies
+    if (!token && req.cookies && req.cookies.token) {
+      token = req.cookies.token;
+    }
     
     if (!token) {
       return res.status(401).json({ message: 'No token, authorization denied' });
