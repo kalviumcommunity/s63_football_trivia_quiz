@@ -89,6 +89,20 @@ exports.signup = async (req, res) => {
 
     // Generate JWT token
     const token = generateToken(user._id);
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`[TOKEN GENERATED] User: ${user.username} (ID: ${user._id})`);
+    console.log(`[JWT TOKEN VALUE] ${token}`);
+    console.log(`${'='.repeat(80)}\n`);
+
+    // Set token in cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      path: '/',
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production' // Use secure in production
+    });
+    console.log(`[AUTH] Token stored in cookie for user: ${user.username}`);
 
     // Return success with token and user data (excluding password)
     res.status(201).json({
@@ -136,6 +150,20 @@ exports.login = async (req, res) => {
 
     // Generate JWT token
     const token = generateToken(user._id);
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`[TOKEN GENERATED] Login for user: ${user.username} (ID: ${user._id})`);
+    console.log(`[JWT TOKEN VALUE] ${token}`);
+    console.log(`${'='.repeat(80)}\n`);
+
+    // Set token in cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      path: '/',
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production' // Use secure in production
+    });
+    console.log(`[AUTH] Token stored in cookie for login: ${user.username}`);
 
     // Set username in cookie
     res.cookie('username', user.username, {
@@ -164,8 +192,12 @@ exports.login = async (req, res) => {
 // User logout
 exports.logout = async (req, res) => {
   try {
-    // Clear the username cookie
+    // Clear the token and username cookies
+    res.clearCookie('token', { path: '/' });
     res.clearCookie('username', { path: '/' });
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`[TOKEN CLEARED] Token and username cookies cleared during logout`);
+    console.log(`${'='.repeat(80)}\n`);
     
     res.status(200).json({ message: 'Logout successful' });
   } catch (error) {
