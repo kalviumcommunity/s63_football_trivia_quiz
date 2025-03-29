@@ -137,6 +137,14 @@ exports.login = async (req, res) => {
     // Generate JWT token
     const token = generateToken(user._id);
 
+    // Set username in cookie
+    res.cookie('username', user.username, {
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      path: '/',
+      sameSite: 'lax'
+    });
+
     // Return success with token and user data (excluding password)
     res.status(200).json({
       token,
@@ -150,6 +158,19 @@ exports.login = async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Server error during login' });
+  }
+};
+
+// User logout
+exports.logout = async (req, res) => {
+  try {
+    // Clear the username cookie
+    res.clearCookie('username', { path: '/' });
+    
+    res.status(200).json({ message: 'Logout successful' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ message: 'Server error during logout' });
   }
 };
 
